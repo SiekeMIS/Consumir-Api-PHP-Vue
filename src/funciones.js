@@ -16,60 +16,40 @@ export function mostrarAlerta(titulo, icono, foco = '') {
     });
 }
 
-export function mostrarConfirmacion(id, name) {
-    var url = 'http://127.0.0.1:8000/api/libros/' + id;
-    const swalwithBootstrapButtons = Swal.mixin({
-        customClass: {
-            confirmButton: 'btn btn-success',
-            cancelButton: 'btn btn-danger'
-        },
-        buttonsStyling: false
-    });
-    swalwithBootstrapButtons.fire({
-        title: '¿Estás seguro de eliminar el producto ' + name + '?',
-        text: "Se perderá la información del libro",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: '<i className="fas fa-check" style="color: white; font-size: 1.2em; margin-right: 5px;"></i> Sí, eliminar',
-        cancelButtonText: '<i className="fas fa-times" style="color: white; font-size: 1.2em; margin-right: 5px;"></i> No, cancelar',
-        reverseButtons: true
-    }).then((result) => {
+export async function mostrarConfirmacion(id, titulo) {
+    try {
+        const url = `http://127.0.0.1:8000/api/libros/${id}`;
+        
+        const result = await Swal.fire({
+            title: `¿Eliminar "${titulo}"?`,
+            text: "Esta acción no se puede deshacer",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            customClass: {
+                confirmButton: 'btn btn-danger me-2',
+                cancelButton: 'btn btn-secondary'
+            },
+            buttonsStyling: false
+        });
+
         if (result.isConfirmed) {
-            enviarPeticionEliminar(url);
-            axios.delete(url)
-                .then(response => {
-                    mostrarAlerta('Libro eliminado correctamente', 'success');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                })
-                .catch(error => {
-                    mostrarAlerta('Error al eliminar el libro', 'error');
-                });
-        } else if (result.dismiss === Swal.DismissReason.cancel) {
-            mostrarAlerta('Operación cancelada', 'info');
+            const response = await axios.delete(url);
+            
+            if (response.data.success) {
+                mostrarAlerta('Libro eliminado correctamente', 'success');
+                return true;
+            }
+            throw new Error(response.data.message || 'Error al eliminar');
         }
-    });
+        return false;
+    } catch (error) {
+        console.error('Error al eliminar:', error);
+        mostrarAlerta(error.response?.data?.message || 'Error al eliminar el libro', 'error');
+        return false;
+    }
 }
 
-export function enviarPeticionEliminar(metodo, parametros, url, mensaje) {
-    axios({ method: metodo, url: url, data: parametros })
-        .then(function (response) {
-            var  status = response.data[0]['status'];
-            if (status === 'success') {
-                mostrarAlerta(mensaje, 'status');
-                window.setTimeout(function () {
-                    window.location.href = '/';
-                }, 1000);
-            } else {
-                var lista = '';
-                var errorer = response.data[1]['error'];
-                Object.keys(errorer).forEach(
-                    key => {lista += errorer[key][0] + '<br>';
-                });
-                mostrarAlerta(lista, 'error');
-            }
-    }).catch(function (error) {
-        mostrarAlerta('Error al enviar la petición: ' + error.message, 'error');
-    });
-}
+// Esta función ya no es necesaria si usas la versión actualizada de mostrarConfirmacion
+// export function enviarPeticionEliminar() {...}

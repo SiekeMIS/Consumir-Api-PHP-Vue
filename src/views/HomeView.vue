@@ -8,17 +8,18 @@
                             <th>Título</th>
                             <th>Autor</th>
                             <th>Fecha de Publicación</th>
+                            <th>Acciones</th> <!-- Columna añadida para los botones -->
                         </tr>
                     </thead>
                     <tbody class="table-group-divider">
                         <!-- Mensaje de carga -->
                         <tr v-if="loading">
-                            <td colspan="3" class="text-center">Cargando libros...</td>
+                            <td colspan="4" class="text-center">Cargando libros...</td>
                         </tr>
                         
                         <!-- Mensaje si no hay libros -->
                         <tr v-else-if="!libros || libros.length === 0">
-                            <td colspan="3" class="text-center">No hay libros disponibles</td>
+                            <td colspan="4" class="text-center">No hay libros disponibles</td>
                         </tr>
                         
                         <!-- Lista de libros -->
@@ -27,11 +28,11 @@
                             <td>{{ libro.autor }}</td>
                             <td>{{ formatFecha(libro.fecha_publicacion) }}</td>
                             <td>
-                                <router-link :to="{ path: 'edit/' + libro.id }" class="btn btn-warning">
-                                    <i class="fas fa-book"></i>
+                                <router-link :to="{ name: 'edit', params: { id: libro.id } }" class="btn btn-warning btn-sm me-2">
+                                    <i class="fas fa-edit"></i> Editar
                                 </router-link>
-                                <button class="btn btn-danger" @click="eliminarLibro(libro.id, libro.titulo)">
-                                    <i class="fas fa-trash"></i>
+                                <button class="btn btn-danger btn-sm" @click="eliminarLibro(libro.id, libro.titulo)">
+                                    <i class="fas fa-trash-alt"></i> Eliminar
                                 </button>
                             </td>
                         </tr>
@@ -44,11 +45,12 @@
 
 <script>
 import axios from 'axios';
-import { mostrarConfirmacion } from '../funciones.js'; // Asegúrate de que esta función esté definida en tu proyecto
+import { mostrarAlerta, mostrarConfirmacion } from '../funciones.js';
+
 export default {
     data() {
         return {
-            libros: [], // Asegúrate de inicializarlo como array
+            libros: [],
             loading: true,
             error: null
         };
@@ -61,21 +63,42 @@ export default {
             try {
                 this.loading = true;
                 const response = await axios.get('http://127.0.0.1:8000/api/libros');
-                this.libros = response.data.libros; // ⬅️ ¡Cambio clave aquí!
+                
+                // Verifica la estructura de la respuesta
+                console.log('Respuesta API:', response.data);
+                
+                // Ajusta según la estructura real de tu API
+                this.libros = response.data.data || response.data.libros || response.data;
+                
+                if (!this.libros || this.libros.length === 0) {
+                    mostrarAlerta('No se encontraron libros', 'info');
+                }
             } catch (error) {
                 console.error('Error al cargar libros:', error);
-                this.error = "Error al cargar los libros";
+                mostrarAlerta('Error al cargar los libros: ' + error.message, 'error');
+                this.error = error.message;
             } finally {
                 this.loading = false;
             }
         },
         formatFecha(fecha) {
             if (!fecha) return 'N/A';
-            return new Date(fecha).toLocaleDateString('es-ES'); // Formato legible
+            try {
+                // Asegúrate de que la fecha esté en formato válido
+                return new Date(fecha).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            } catch (e) {
+                console.error('Error formateando fecha:', e);
+                return fecha; // Devuelve la fecha original si no se puede formatear
+            }
         },
-        eliminarLibro(id, titulo) {
+        async eliminarLibro(id, titulo) {
             mostrarConfirmacion(id, titulo);
-
+            // Actualiza la lista después de eliminar
+            await this.fetchLibros();
         }
     }
 }
